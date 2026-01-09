@@ -45,4 +45,8 @@ Evidence from the story:
 {excerpt}
 
 Question:
-If the evidence is true, does it make the claim logically impossible, even if the claim is never explicitly denied?"""
+If both are assumed to be true, do they require the character
+to be in two incompatible world-states at the same time?
+
+Answer ONLY YES or NO.
+"""

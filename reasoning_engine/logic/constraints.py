@@ -37,6 +37,34 @@ def _save_cache(cache: dict):
         pass  # Fail silently if cache can't be written
 
 
+def is_potentially_state_changing(text: str) -> bool:
+    """
+    Structural (not semantic) filter.
+    Detects whether text implies a persistent state, capability,
+    commitment, or long-term condition.
+    """
+    t = text.lower()
+    return any(
+        phrase in t
+        for phrase in [
+            "for years",
+            "throughout",
+            "always",
+            "never",
+            "remained",
+            "became",
+            "served",
+            "assigned",
+            "trained",
+            "educated",
+            "appointed",
+            "bound",
+            "devoted",
+            "stationed",
+        ]
+    )
+
+
 def _dry_run_constraint_violation(claim: str, texts: List[str]) -> bool:
     """
     Heuristic-based constraint violation detection for DRY_RUN mode.
@@ -117,13 +145,7 @@ def detect_constraint_violation(claim: str, texts: List[str]) -> bool:
         True if constraint violation detected, False otherwise
     """
     cache = _load_cache()
-
-    # Create cache key from all texts
-    cache_key = f"{claim}|||{'|||'.join(texts)}"
-
-    # Check cache
-    if cache_key in cache:
-        return cache[cache_key]
+    has_violation = False
 
     # Determine constraint violation
     if DRY_RUN:
@@ -131,23 +153,35 @@ def detect_constraint_violation(claim: str, texts: List[str]) -> bool:
     else:
         # Check compatibility with each text chunk
         # If any chunk is incompatible, we have a violation
-        print("Calling LLM for constraint compatibility check")
-
-        has_violation = False
-
         for text in texts:
-            prompt = get_constraint_compatibility_prompt(claim, text)
-            response = call_llama(prompt).upper().strip()
+            # Apply state-change gate before LLM check
+            if not is_potentially_state_changing(text):
+                continue
 
-            # If LLM says NO (cannot be true together), we have a violation
-            is_incompatible = "NO" in response or response.startswith("N")
+            # Create cache key per (claim, text) pair
+            cache_key = f"{claim}|||{text}"
+
+            # Check cache
+            if cache_key in cache:
+                is_incompatible = cache[cache_key]
+            else:
+                print("[DEBUG] Calling LLM for constraint compatibility check")
+
+                prompt = get_constraint_compatibility_prompt(claim, text)
+                response = call_llama(prompt).upper().strip()
+
+                if not response:
+                    raise RuntimeError("Empty LLM response in constraint check")
+
+                # If LLM says NO (cannot be true together), we have a violation
+                is_incompatible = response.startswith("NO")
+
+                # Cache result
+                cache[cache_key] = is_incompatible
+                _save_cache(cache)
 
             if is_incompatible:
                 has_violation = True
                 break
-
-    # Cache result
-    cache[cache_key] = has_violation
-    _save_cache(cache)
 
     return has_violation
