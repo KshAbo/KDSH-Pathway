@@ -110,6 +110,8 @@ class PathwayVectorIndex:
         
         return evidences
 
+# the bbelow function seems to be shortened by GPT
+
 class NovelIndexer:
     def __init__(self):
         self.chunker = NovelChunker()
