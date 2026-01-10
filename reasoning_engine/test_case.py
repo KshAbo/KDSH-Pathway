@@ -5,6 +5,7 @@ All evidence aligns with the claim.
 
 import sys
 import os
+import textwrap
 from reasoning_engine.config import DRY_RUN
 
 print(f"DRY_RUN: {DRY_RUN}")
@@ -17,7 +18,7 @@ from reasoning_engine.engine import evaluate_claim
 # -----------------------
 # CLAIM
 # -----------------------
-claim = "He was handicapped since childhood and could not walk without assistance ever."
+claim = "He was handicapped since his very childhood and couldn't walk without assistance of others."
 
 # -----------------------
 # EVIDENCE CHUNKS
@@ -73,4 +74,51 @@ evidence_chunks = [
 # RUN EVALUATION
 # -----------------------
 result = evaluate_claim(claim, evidence_chunks)
-print(result)
+
+# Format output for readability
+print("\n" + "=" * 80)
+print("EVALUATION RESULT")
+print("=" * 80)
+print(f"\nClaim:")
+print(
+    f"  {textwrap.fill(result['claim'], width=76, initial_indent='', subsequent_indent='  ')}"
+)
+print(f"\nDecision Metrics:")
+print(f"  - Contradictions: {result['contradictions']}")
+print(f"  - Constraint Violation: {result['constraint_violation']}")
+print(
+    f"  - Final Decision: {result['decision']} ({'[INVALID]' if result['decision'] == 0 else '[VALID]'})"
+)
+
+if "evidence_rationale" in result and result["evidence_rationale"]:
+    print(f"\n{'=' * 80}")
+    print("EVIDENCE RATIONALE")
+    print(f"{'=' * 80}")
+
+    for idx, rationale_item in enumerate(result["evidence_rationale"], 1):
+        print(f"\n{'-' * 80}")
+        print(f"Evidence #{idx} (Chunk ID: {rationale_item['chunk_id']})")
+        print(f"Relation: {rationale_item['relation']}")
+        print(f"\nExcerpt:")
+        # Wrap excerpt text at 76 characters with proper indentation
+        excerpt_wrapped = textwrap.fill(
+            rationale_item["excerpt"],
+            width=76,
+            initial_indent="  ",
+            subsequent_indent="  ",
+        )
+        print(excerpt_wrapped)
+
+        print(f"\nReason:")
+        # Wrap reason text at 76 characters with proper indentation
+        reason_wrapped = textwrap.fill(
+            rationale_item["reason"],
+            width=76,
+            initial_indent="  ",
+            subsequent_indent="  ",
+        )
+        print(reason_wrapped)
+else:
+    print("\nNo evidence rationale available.")
+
+print("\n" + "=" * 80 + "\n")

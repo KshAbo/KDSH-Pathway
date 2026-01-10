@@ -45,8 +45,33 @@ Evidence from the story:
 {excerpt}
 
 Question:
-If both are assumed to be true, do they require the character
-to be in two incompatible world-states at the same time?
+Assuming both are true, do they describe a logical impossibility
+in the character's abilities, actions, or life history?
+Ignore differences in cause or explanation unless coexistence is impossible.
 
 Answer ONLY YES or NO.
+"""
+
+
+def get_contradiction_explanation_prompt(claim: str, excerpt: str) -> str:
+    return f"""Explain in ONE sentence why the excerpt contradicts the claim.
+Do NOT add new facts.
+
+Claim:
+{claim}
+
+Excerpt:
+{excerpt}
+"""
+
+
+def get_constraint_explanation_prompt(claim: str, excerpt: str) -> str:
+    return f"""Explain in ONE sentence why the excerpt is logically incompatible
+with the claim, even if the claim is not explicitly denied.
+
+Claim:
+{claim}
+
+Excerpt:
+{excerpt}
 """

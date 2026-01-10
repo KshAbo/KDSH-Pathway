@@ -4,9 +4,9 @@ Contradiction detection logic.
 
 import json
 import os
-from typing import List
+from typing import List, Tuple, Dict, Any
 
-from ..config import DRY_RUN
+from ..config import DRY_RUN, CACHE_ENABLED
 from ..llm.llama_client import call_llama
 from ..llm.prompts import get_contradiction_prompt
 
@@ -17,6 +17,11 @@ CACHE_FILE = os.path.join(CACHE_DIR, "contradiction_cache.json")
 
 def _load_cache() -> dict:
     """Load contradiction cache from disk."""
+    if not CACHE_ENABLED:
+        # Minimal debug log when cache is globally disabled
+        print("[DEBUG] Cache disabled — skipping contradiction cache load")
+        return {}
+
     if not os.path.exists(CACHE_FILE):
         return {}
 
@@ -29,6 +34,11 @@ def _load_cache() -> dict:
 
 def _save_cache(cache: dict):
     """Save contradiction cache to disk."""
+    if not CACHE_ENABLED:
+        # When cache is disabled, do not write cache
+        print("[DEBUG] Cache disabled — skipping contradiction cache write")
+        return
+
     os.makedirs(CACHE_DIR, exist_ok=True)
     try:
         with open(CACHE_FILE, "w", encoding="utf-8") as f:
@@ -166,3 +176,73 @@ def count_contradictions(claim: str, texts: List[str]) -> int:
             contradiction_count += 1
 
     return contradiction_count
+
+
+def analyze_contradictions(claim: str, texts: List[str], chunks: List[Dict[str, Any]]) -> Tuple[int, List[Dict[str, Any]]]:
+    """
+    Analyze contradictions and return count with evidence rationale analysis.
+    
+    Args:
+        claim: The claim to evaluate
+        texts: List of cleaned evidence text strings (order matches chunks)
+        chunks: List of evidence chunk dictionaries with chunk_id and text
+        
+    Returns:
+        Tuple of:
+        - contradiction_count: int (number of contradicting chunks)
+        - analyses: list of evidence rationale units with:
+            - chunk_id: int
+            - excerpt: str
+            - relation: "CONTRADICT" or "NEUTRAL"
+            - reason: str (empty for now, filled in later)
+    """
+    cache = _load_cache()
+    contradiction_count = 0
+    analyses = []
+    
+    # Match texts to chunks by index (order is preserved by normalize_evidence_chunks)
+    for i, text in enumerate(texts):
+        if i >= len(chunks):
+            break
+            
+        chunk = chunks[i]
+        chunk_id = chunk.get("chunk_id", i + 1)
+        excerpt = chunk.get("text", text)
+        
+        # Create cache key
+        cache_key = f"{claim}|||{text}"
+        
+        # Check cache (reuse existing logic)
+        if cache_key in cache:
+            is_contradiction = cache[cache_key]
+        else:
+            # Determine contradiction (reuse existing logic)
+            if DRY_RUN:
+                is_contradiction = _dry_run_contradiction(claim, text)
+            else:
+                # Call LLM
+                prompt = get_contradiction_prompt(claim, text)
+                response = call_llama(prompt).upper().strip()
+                
+                # Parse YES/NO response
+                is_contradiction = "NO" in response or response.startswith("N")
+                
+                # Cache result
+                cache[cache_key] = is_contradiction
+                _save_cache(cache)
+        
+        # Determine relation
+        relation = "CONTRADICT" if is_contradiction else "NEUTRAL"
+        
+        if is_contradiction:
+            contradiction_count += 1
+        
+        # Add analysis entry (reason will be filled in later)
+        analyses.append({
+            "chunk_id": chunk_id,
+            "excerpt": excerpt,
+            "relation": relation,
+            "reason": ""
+        })
+    
+    return contradiction_count, analyses
