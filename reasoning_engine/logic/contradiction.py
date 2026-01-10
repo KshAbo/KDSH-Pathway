@@ -7,7 +7,7 @@ import os
 from typing import List, Tuple, Dict, Any
 
 from ..config import DRY_RUN, CACHE_ENABLED
-from ..llm.llama_client import call_llama
+from ..llm.qwen_client import call_qwen
 from ..llm.prompts import get_contradiction_prompt
 
 # Cache file path
@@ -135,13 +135,14 @@ def _dry_run_contradiction(claim: str, text: str) -> bool:
     return False
 
 
-def count_contradictions(claim: str, texts: List[str]) -> int:
+def count_contradictions(claim: str, texts: List[str], character: str) -> int:
     """
     Count how many evidence chunks explicitly contradict the claim.
 
     Args:
         claim: The claim to evaluate
         texts: List of cleaned evidence text strings
+        character: The character name this claim is about
 
     Returns:
         Number of chunks that contradict the claim
@@ -162,11 +163,14 @@ def count_contradictions(claim: str, texts: List[str]) -> int:
                 is_contradiction = _dry_run_contradiction(claim, text)
             else:
                 # Call LLM
-                prompt = get_contradiction_prompt(claim, text)
-                response = call_llama(prompt).upper().strip()
+                prompt = get_contradiction_prompt(claim, text, character)
+                response = call_qwen(prompt).upper().strip()
 
                 # Parse YES/NO response
-                is_contradiction = "NO" in response or response.startswith("N")
+                if response.startswith("__LLM_ERROR__"):
+                    is_contradiction = False  # conservative
+                else:
+                    is_contradiction = response.startswith("YES")
 
                 # Cache result
                 cache[cache_key] = is_contradiction
@@ -225,10 +229,13 @@ def analyze_contradictions(
             else:
                 # Call LLM
                 prompt = get_contradiction_prompt(claim, text, character)
-                response = call_llama(prompt).upper().strip()
+                response = call_qwen(prompt).upper().strip()
 
                 # Parse YES/NO response
-                is_contradiction = "NO" in response or response.startswith("N")
+                if response.startswith("__LLM_ERROR__"):
+                    is_contradiction = False  # conservative
+                else:
+                    is_contradiction = response.startswith("YES")
 
                 # Cache result
                 cache[cache_key] = is_contradiction

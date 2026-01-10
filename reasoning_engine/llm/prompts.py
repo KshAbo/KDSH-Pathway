@@ -15,12 +15,12 @@ def get_contradiction_prompt(claim: str, excerpt: str, character: str) -> str:
     Returns:
         Formatted prompt string
     """
-    return f"""Answer ONLY YES or NO.
+    return f"""Respond YES or NO only.
 
-CHARACTER FOCUS:
-This claim is ONLY about {character}. Ignore all other characters.
-Only consider events, actions, or statements directly about {character}.
-If the excerpt mentions other characters or situations not involving {character}, disregard them.
+IMPORTANT: This evaluation is ONLY about {character}.
+If the excerpt is NOT about {character}, respond NO.
+If the excerpt is about OTHER CHARACTERS but not {character}, respond NO.
+Only if the excerpt contradicts something about {character} specifically, respond YES.
 
 Claim:
 {claim}
@@ -28,7 +28,7 @@ Claim:
 Excerpt from the novel:
 {excerpt}
 
-Does the excerpt clearly contradict the claim about {character}?"""
+Does the excerpt contradict the claim? Answer YES or NO."""
 
 
 def get_constraint_compatibility_prompt(
@@ -45,12 +45,12 @@ def get_constraint_compatibility_prompt(
     Returns:
         Formatted prompt string
     """
-    return f"""Answer ONLY YES or NO.
+    return f"""Respond YES or NO only.
 
-CHARACTER FOCUS:
-This claim is ONLY about {character}. Ignore all other characters.
-Only consider events, actions, or statements directly about {character}.
-If the excerpt mentions other characters or situations not involving {character}, disregard them.
+IMPORTANT: This evaluation is ONLY about {character}.
+If the excerpt is NOT about {character}, respond NO.
+If the excerpt is about OTHER CHARACTERS but not {character}, respond NO.
+Only evaluate compatibility/incompatibility for {character}.
 
 Claim:
 {claim}
@@ -61,10 +61,8 @@ Evidence from the story:
 Question:
 Assuming both are true for {character}, do they describe a logical impossibility
 in the character's abilities, actions, or life history?
-Ignore differences in cause or explanation unless coexistence is impossible.
 
-Answer ONLY YES or NO.
-"""
+Answer YES or NO."""
 
 
 def get_contradiction_explanation_prompt(

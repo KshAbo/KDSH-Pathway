@@ -24,7 +24,7 @@ character = "Elias"
 # -----------------------
 # CLAIM
 # -----------------------
-claim = "Elias had never left his hometown before adulthood."
+claim = "Elias had never left his hometown before adulthood ever."
 
 # -----------------------
 # EVIDENCE CHUNKS

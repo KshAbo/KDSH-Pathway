@@ -7,7 +7,7 @@ import os
 from typing import List, Optional, Dict, Any, Tuple
 
 from ..config import DRY_RUN, CACHE_ENABLED
-from ..llm.llama_client import call_llama
+from ..llm.qwen_client import call_qwen
 from ..llm.prompts import get_constraint_compatibility_prompt
 
 # Cache file path
@@ -47,15 +47,15 @@ def _save_cache(cache: dict):
         pass  # Fail silently if cache can't be written
 
 
-def supports_claim_llm(claim: str, text: str) -> bool:
+def supports_claim_llm(claim: str, text: str, character: str) -> bool:
     """
     Uses a constrained LLM call to determine whether the excerpt
-    supports or reinforces the claim.
-    Cached per (claim, text) pair.
+    supports or reinforces the claim about the specific character.
+    Cached per (claim, text, character) tuple.
     """
     cache = _load_cache()
     # Use a different cache key prefix for support checks
-    cache_key = f"SUPPORT|||{claim}|||{text}"
+    cache_key = f"SUPPORT|||{character}|||{claim}|||{text}"
 
     # Check cache
     if cache_key in cache:
@@ -67,22 +67,22 @@ def supports_claim_llm(claim: str, text: str) -> bool:
         # This allows constraint checks to proceed normally
         return False
 
-    prompt = f"""Answer ONLY YES or NO.
+    prompt = f"""Respond YES or NO only.
 
-Claim:
+Claim (about {character}):
 {claim}
 
 Excerpt:
 {text}
 
-Does the excerpt support or reinforce the claim?
-"""
+Does the excerpt support or reinforce this claim about {character}? Answer YES or NO."""
 
-    response = call_llama(prompt).upper().strip()
-    if not response:
-        raise RuntimeError("Empty LLM response in support check")
-
-    is_support = response.startswith("YES")
+    response = call_qwen(prompt).upper().strip()
+    # If error response, default to False (no support) conservatively
+    if response.startswith("__LLM_ERROR__"):
+        is_support = False
+    else:
+        is_support = response.startswith("YES")
 
     # Cache result
     cache[cache_key] = is_support
@@ -187,13 +187,14 @@ def _dry_run_constraint_violation(claim: str, texts: List[str]) -> bool:
     return False
 
 
-def detect_constraint_violation(claim: str, texts: List[str]) -> bool:
+def detect_constraint_violation(claim: str, texts: List[str], character: str) -> bool:
     """
     Detect if evidence violates implicit constraints of the claim.
 
     Args:
         claim: The claim to evaluate
         texts: List of cleaned evidence text strings
+        character: The character name this claim is about
 
     Returns:
         True if constraint violation detected, False otherwise
@@ -207,10 +208,10 @@ def detect_constraint_violation(claim: str, texts: List[str]) -> bool:
     else:
         # Check compatibility with each text chunk
         # If any chunk is incompatible, we have a violation
-        for text in texts:
+        for i, text in enumerate(texts):
             # SUPPORT GATE — must run before constraint logic
             # Supporting evidence can never violate constraints
-            if supports_claim_llm(claim, text):
+            if supports_claim_llm(claim, text, character):
                 continue  # Skip constraint checks for supporting evidence
 
             # Apply state-change gate before LLM check
@@ -220,20 +221,20 @@ def detect_constraint_violation(claim: str, texts: List[str]) -> bool:
             # Create cache key per (claim, text) pair
             cache_key = f"{claim}|||{text}"
 
-            # Check cache
+            # Check cache (reuse existing logic)
             if cache_key in cache:
                 is_incompatible = cache[cache_key]
             else:
-                print("[DEBUG] Calling LLM for constraint compatibility check")
+                prompt = get_constraint_compatibility_prompt(claim, text, character)
+                response = call_qwen(prompt).upper().strip()
 
-                prompt = get_constraint_compatibility_prompt(claim, text)
-                response = call_llama(prompt).upper().strip()
-
-                if not response:
-                    raise RuntimeError("Empty LLM response in constraint check")
-
-                # If LLM says NO (cannot be true together), we have a violation
-                is_incompatible = response.startswith("NO")
+                # If error response, default to False (no violation) conservatively
+                if response.startswith("__LLM_ERROR__"):
+                    is_incompatible = False
+                else:
+                    # If LLM says YES (they ARE incompatible), we have a violation
+                    # If LLM says NO (compatible), no violation
+                    is_incompatible = response.startswith("YES")
 
                 # Cache result
                 cache[cache_key] = is_incompatible
@@ -326,7 +327,8 @@ def analyze_constraints(
 
             # SUPPORT GATE — must run before constraint logic
             # Supporting evidence can never violate constraints
-            if supports_claim_llm(claim, text):
+            is_support = supports_claim_llm(claim, text, character)
+            if is_support:
                 continue  # Skip constraint checks for supporting evidence
 
             # Apply state-change gate before LLM check
@@ -340,16 +342,16 @@ def analyze_constraints(
             if cache_key in cache:
                 is_incompatible = cache[cache_key]
             else:
-                print("[DEBUG] Calling LLM for constraint compatibility check")
-
                 prompt = get_constraint_compatibility_prompt(claim, text, character)
-                response = call_llama(prompt).upper().strip()
+                response = call_qwen(prompt).upper().strip()
 
-                if not response:
-                    raise RuntimeError("Empty LLM response in constraint check")
-
-                # If LLM says NO (cannot be true together), we have a violation
-                is_incompatible = response.startswith("NO")
+                # If error response, default to False (no violation) conservatively
+                if response.startswith("__LLM_ERROR__"):
+                    is_incompatible = False
+                else:
+                    # If LLM says YES (they ARE incompatible), we have a violation
+                    # If LLM says NO (compatible), no violation
+                    is_incompatible = response.startswith("YES")
 
                 # Cache result
                 cache[cache_key] = is_incompatible
