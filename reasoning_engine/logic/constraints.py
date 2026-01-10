@@ -247,7 +247,7 @@ def detect_constraint_violation(claim: str, texts: List[str]) -> bool:
 
 
 def analyze_constraints(
-    claim: str, texts: List[str], chunks: List[Dict[str, Any]]
+    claim: str, texts: List[str], chunks: List[Dict[str, Any]], character: str
 ) -> Tuple[bool, Optional[Dict[str, Any]]]:
     """
     Analyze constraint violations and return violation status with violating chunk.
@@ -256,6 +256,7 @@ def analyze_constraints(
         claim: The claim to evaluate
         texts: List of cleaned evidence text strings (order matches chunks)
         chunks: List of evidence chunk dictionaries with chunk_id and text
+        character: The character name this claim is about
 
     Returns:
         Tuple of:
@@ -341,7 +342,7 @@ def analyze_constraints(
             else:
                 print("[DEBUG] Calling LLM for constraint compatibility check")
 
-                prompt = get_constraint_compatibility_prompt(claim, text)
+                prompt = get_constraint_compatibility_prompt(claim, text, character)
                 response = call_llama(prompt).upper().strip()
 
                 if not response:

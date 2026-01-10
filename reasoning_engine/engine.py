@@ -22,6 +22,7 @@ def generate_evidence_rationale(
     contradiction_analysis: List[Dict[str, Any]],
     constraint_analysis: Optional[Dict[str, Any]],
     decision: int,
+    character: str,
 ) -> List[Dict[str, Any]]:
     """
     Generate evidence rationale explanations.
@@ -35,9 +36,10 @@ def generate_evidence_rationale(
         contradiction_analysis: List of analysis dicts from analyze_contradictions
         constraint_analysis: Optional dict with violating chunk from analyze_constraints
         decision: Final decision (0 or 1)
+        character: The character name the claim is about
 
     Returns:
-        List of evidence rationale units with chunk_id, excerpt, relation, and reason
+        List of evidence rationale units with chunk_id, excerpt, relation, reason, and character
     """
     rationale = []
 
@@ -52,7 +54,9 @@ def generate_evidence_rationale(
             else:
                 # Generate LLM explanation
                 try:
-                    prompt = get_contradiction_explanation_prompt(claim, excerpt)
+                    prompt = get_contradiction_explanation_prompt(
+                        claim, excerpt, character
+                    )
                     response = call_llama(prompt).strip()
                     # Extract first sentence only
                     reason = (
@@ -70,6 +74,7 @@ def generate_evidence_rationale(
                     "excerpt": excerpt,
                     "relation": "CONTRADICT",
                     "reason": reason,
+                    "character": character,
                 }
             )
         # Note: NEUTRAL chunks are not added to rationale unless decision=1 and they SUPPORT
@@ -89,7 +94,9 @@ def generate_evidence_rationale(
             else:
                 # Generate LLM explanation
                 try:
-                    prompt = get_constraint_explanation_prompt(claim, excerpt)
+                    prompt = get_constraint_explanation_prompt(
+                        claim, excerpt, character
+                    )
                     response = call_llama(prompt).strip()
                     # Extract first sentence only
                     reason = (
@@ -109,6 +116,7 @@ def generate_evidence_rationale(
                     "excerpt": excerpt,
                     "relation": "INCOMPATIBLE",
                     "reason": reason,
+                    "character": character,
                 }
             )
 
@@ -124,6 +132,7 @@ def generate_evidence_rationale(
                         "excerpt": analysis["excerpt"],
                         "relation": "SUPPORT",
                         "reason": "The excerpt is consistent with the claim.",
+                        "character": character,
                     }
                 )
                 break
@@ -132,7 +141,10 @@ def generate_evidence_rationale(
 
 
 def evaluate_claim(
-    claim: str, evidence_chunks: List[Dict[str, Any]], return_rationale: bool = True
+    claim: str,
+    evidence_chunks: List[Dict[str, Any]],
+    character: str,
+    return_rationale: bool = True,
 ) -> Dict[str, Any]:
     """
     Evaluate whether a claim is consistent with evidence chunks.
@@ -143,6 +155,7 @@ def evaluate_claim(
             - chunk_id: int
             - text: str
             - meta: dict with book_name and position
+        character: The character name the claim is about (REQUIRED)
         return_rationale: If True, include evidence_rationale in output (default: False)
 
     Returns:
@@ -188,10 +201,10 @@ def evaluate_claim(
         from .logic.constraints import analyze_constraints
 
         contradictions, contradiction_analysis = analyze_contradictions(
-            claim, clean_texts, filtered_chunks
+            claim, clean_texts, filtered_chunks, character
         )
         constraint_violation, violating_chunk = analyze_constraints(
-            claim, clean_texts, filtered_chunks
+            claim, clean_texts, filtered_chunks, character
         )
 
         # Aggregate decision
@@ -205,6 +218,7 @@ def evaluate_claim(
             contradiction_analysis,
             constraint_analysis_dict,
             decision,
+            character,
         )
 
         return {

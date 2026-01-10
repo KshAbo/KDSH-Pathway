@@ -18,6 +18,7 @@ from reasoning_engine.engine import evaluate_claim
 # -----------------------
 # CLAIM
 # -----------------------
+character = "He"
 claim = "He was handicapped since his very childhood and couldn't walk without assistance of others."
 
 # -----------------------
@@ -73,7 +74,7 @@ evidence_chunks = [
 # -----------------------
 # RUN EVALUATION
 # -----------------------
-result = evaluate_claim(claim, evidence_chunks)
+result = evaluate_claim(claim, evidence_chunks, character)
 
 # Format output for readability
 print("\n" + "=" * 80)

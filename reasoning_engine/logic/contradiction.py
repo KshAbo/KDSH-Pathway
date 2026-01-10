@@ -178,15 +178,18 @@ def count_contradictions(claim: str, texts: List[str]) -> int:
     return contradiction_count
 
 
-def analyze_contradictions(claim: str, texts: List[str], chunks: List[Dict[str, Any]]) -> Tuple[int, List[Dict[str, Any]]]:
+def analyze_contradictions(
+    claim: str, texts: List[str], chunks: List[Dict[str, Any]], character: str
+) -> Tuple[int, List[Dict[str, Any]]]:
     """
     Analyze contradictions and return count with evidence rationale analysis.
-    
+
     Args:
         claim: The claim to evaluate
         texts: List of cleaned evidence text strings (order matches chunks)
         chunks: List of evidence chunk dictionaries with chunk_id and text
-        
+        character: The character name this claim is about
+
     Returns:
         Tuple of:
         - contradiction_count: int (number of contradicting chunks)
@@ -199,19 +202,19 @@ def analyze_contradictions(claim: str, texts: List[str], chunks: List[Dict[str, 
     cache = _load_cache()
     contradiction_count = 0
     analyses = []
-    
+
     # Match texts to chunks by index (order is preserved by normalize_evidence_chunks)
     for i, text in enumerate(texts):
         if i >= len(chunks):
             break
-            
+
         chunk = chunks[i]
         chunk_id = chunk.get("chunk_id", i + 1)
         excerpt = chunk.get("text", text)
-        
+
         # Create cache key
         cache_key = f"{claim}|||{text}"
-        
+
         # Check cache (reuse existing logic)
         if cache_key in cache:
             is_contradiction = cache[cache_key]
@@ -221,28 +224,30 @@ def analyze_contradictions(claim: str, texts: List[str], chunks: List[Dict[str, 
                 is_contradiction = _dry_run_contradiction(claim, text)
             else:
                 # Call LLM
-                prompt = get_contradiction_prompt(claim, text)
+                prompt = get_contradiction_prompt(claim, text, character)
                 response = call_llama(prompt).upper().strip()
-                
+
                 # Parse YES/NO response
                 is_contradiction = "NO" in response or response.startswith("N")
-                
+
                 # Cache result
                 cache[cache_key] = is_contradiction
                 _save_cache(cache)
-        
+
         # Determine relation
         relation = "CONTRADICT" if is_contradiction else "NEUTRAL"
-        
+
         if is_contradiction:
             contradiction_count += 1
-        
+
         # Add analysis entry (reason will be filled in later)
-        analyses.append({
-            "chunk_id": chunk_id,
-            "excerpt": excerpt,
-            "relation": relation,
-            "reason": ""
-        })
-    
+        analyses.append(
+            {
+                "chunk_id": chunk_id,
+                "excerpt": excerpt,
+                "relation": relation,
+                "reason": "",
+            }
+        )
+
     return contradiction_count, analyses
