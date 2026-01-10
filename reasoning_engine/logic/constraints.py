@@ -256,7 +256,7 @@ def analyze_constraints(
         claim: The claim to evaluate
         texts: List of cleaned evidence text strings (order matches chunks)
         chunks: List of evidence chunk dictionaries with chunk_id and text
-        character: The character the claim is about
+        character: The character name this claim is about
 
     Returns:
         Tuple of:

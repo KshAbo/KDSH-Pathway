@@ -22,7 +22,7 @@ def generate_evidence_rationale(
     contradiction_analysis: List[Dict[str, Any]],
     constraint_analysis: Optional[Dict[str, Any]],
     decision: int,
-    character: str = "",
+    character: str,
 ) -> List[Dict[str, Any]]:
     """
     Generate evidence rationale explanations.
@@ -36,10 +36,10 @@ def generate_evidence_rationale(
         contradiction_analysis: List of analysis dicts from analyze_contradictions
         constraint_analysis: Optional dict with violating chunk from analyze_constraints
         decision: Final decision (0 or 1)
-        character: The character the claim is about
+        character: The character name the claim is about
 
     Returns:
-        List of evidence rationale units with chunk_id, excerpt, relation, character, and reason
+        List of evidence rationale units with chunk_id, excerpt, relation, reason, and character
     """
     rationale = []
 
@@ -73,8 +73,8 @@ def generate_evidence_rationale(
                     "chunk_id": analysis["chunk_id"],
                     "excerpt": excerpt,
                     "relation": "CONTRADICT",
-                    "character": character,
                     "reason": reason,
+                    "character": character,
                 }
             )
         # Note: NEUTRAL chunks are not added to rationale unless decision=1 and they SUPPORT
@@ -115,8 +115,8 @@ def generate_evidence_rationale(
                     "chunk_id": violating_chunk_id,
                     "excerpt": excerpt,
                     "relation": "INCOMPATIBLE",
-                    "character": character,
                     "reason": reason,
+                    "character": character,
                 }
             )
 
@@ -131,8 +131,8 @@ def generate_evidence_rationale(
                         "chunk_id": analysis["chunk_id"],
                         "excerpt": analysis["excerpt"],
                         "relation": "SUPPORT",
-                        "character": character,
                         "reason": "The excerpt is consistent with the claim.",
+                        "character": character,
                     }
                 )
                 break
@@ -155,7 +155,7 @@ def evaluate_claim(
             - chunk_id: int
             - text: str
             - meta: dict with book_name and position
-        character: The character the claim is about (required)
+        character: The character name the claim is about (REQUIRED)
         return_rationale: If True, include evidence_rationale in output (default: False)
 
     Returns:

@@ -188,7 +188,7 @@ def analyze_contradictions(
         claim: The claim to evaluate
         texts: List of cleaned evidence text strings (order matches chunks)
         chunks: List of evidence chunk dictionaries with chunk_id and text
-        character: The character the claim is about
+        character: The character name this claim is about
 
     Returns:
         Tuple of:
@@ -197,7 +197,6 @@ def analyze_contradictions(
             - chunk_id: int
             - excerpt: str
             - relation: "CONTRADICT" or "NEUTRAL"
-            - character: str
             - reason: str (empty for now, filled in later)
     """
     cache = _load_cache()
@@ -224,7 +223,7 @@ def analyze_contradictions(
             if DRY_RUN:
                 is_contradiction = _dry_run_contradiction(claim, text)
             else:
-                # Call LLM with character parameter
+                # Call LLM
                 prompt = get_contradiction_prompt(claim, text, character)
                 response = call_llama(prompt).upper().strip()
 
@@ -247,7 +246,6 @@ def analyze_contradictions(
                 "chunk_id": chunk_id,
                 "excerpt": excerpt,
                 "relation": relation,
-                "character": character,
                 "reason": "",
             }
         )
