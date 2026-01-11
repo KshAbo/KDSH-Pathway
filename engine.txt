@@ -9,7 +9,7 @@ from .logic.normalize import normalize_evidence_chunks
 from .logic.contradiction import count_contradictions
 from .logic.constraints import detect_constraint_violation
 from .logic.aggregation import aggregate_decision
-from .llm.llama_client import call_llama
+from .llm.qwen_client import call_qwen
 from .llm.prompts import (
     get_contradiction_explanation_prompt,
     get_constraint_explanation_prompt,
@@ -27,8 +27,9 @@ def generate_evidence_rationale(
     """
     Generate evidence rationale explanations.
 
-    Only generates explanations for CONTRADICT, INCOMPATIBLE, and optionally SUPPORT chunks.
+    Only generates explanations for CONTRADICT and INCOMPATIBLE chunks.
     Explanations are generated AFTER decision is known and never influence the decision.
+    SUPPORT and NEUTRAL chunks are excluded from rationale.
 
     Args:
         claim: The claim that was evaluated
@@ -57,14 +58,20 @@ def generate_evidence_rationale(
                     prompt = get_contradiction_explanation_prompt(
                         claim, excerpt, character
                     )
-                    response = call_llama(prompt).strip()
-                    # Extract first sentence only
-                    reason = (
-                        response.split(".")[0] + "." if "." in response else response
-                    )
-                    # Ensure single sentence
-                    if len(reason) > 500:  # Sanity check
-                        reason = reason[:497] + "..."
+                    response = call_qwen(prompt).strip()
+
+                    if not response or response.startswith("__LLM_ERROR__"):
+                        reason = "The excerpt logically contradicts the claim."
+                    else:
+                        # Extract first sentence only
+                        reason = (
+                            response.split(".")[0] + "."
+                            if "." in response
+                            else response
+                        )
+                        # Ensure single sentence
+                        if len(reason) > 500:  # Sanity check
+                            reason = reason[:497] + "..."
                 except Exception as e:
                     reason = f"Contradiction detected (explanation failed: {str(e)})"
 
@@ -77,7 +84,6 @@ def generate_evidence_rationale(
                     "character": character,
                 }
             )
-        # Note: NEUTRAL chunks are not added to rationale unless decision=1 and they SUPPORT
 
     # Process constraint violation
     if constraint_analysis and constraint_analysis.get("chunk_id"):
@@ -97,14 +103,20 @@ def generate_evidence_rationale(
                     prompt = get_constraint_explanation_prompt(
                         claim, excerpt, character
                     )
-                    response = call_llama(prompt).strip()
-                    # Extract first sentence only
-                    reason = (
-                        response.split(".")[0] + "." if "." in response else response
-                    )
-                    # Ensure single sentence
-                    if len(reason) > 500:  # Sanity check
-                        reason = reason[:497] + "..."
+                    response = call_qwen(prompt).strip()
+
+                    if not response or response.startswith("__LLM_ERROR__"):
+                        reason = "The excerpt logically contradicts the claim's implicit constraints."
+                    else:
+                        # Extract first sentence only
+                        reason = (
+                            response.split(".")[0] + "."
+                            if "." in response
+                            else response
+                        )
+                        # Ensure single sentence
+                        if len(reason) > 500:  # Sanity check
+                            reason = reason[:497] + "..."
                 except Exception as e:
                     reason = (
                         f"Constraint violation detected (explanation failed: {str(e)})"
@@ -120,23 +132,7 @@ def generate_evidence_rationale(
                 }
             )
 
-    # Optional: Add SUPPORT chunks if decision is 1 (positive case)
-    # Only add a few key supporting chunks as heuristic
-    if decision == 1 and len(rationale) == 0:
-        # Add first chunk as supporting evidence (heuristic)
-        for analysis in contradiction_analysis[:1]:  # Just first one
-            if analysis["relation"] == "NEUTRAL":
-                rationale.append(
-                    {
-                        "chunk_id": analysis["chunk_id"],
-                        "excerpt": analysis["excerpt"],
-                        "relation": "SUPPORT",
-                        "reason": "The excerpt is consistent with the claim.",
-                        "character": character,
-                    }
-                )
-                break
-
+    # Note: SUPPORT and NEUTRAL chunks are NOT included in evidence rationale
     return rationale
 
 
@@ -144,7 +140,7 @@ def evaluate_claim(
     claim: str,
     evidence_chunks: List[Dict[str, Any]],
     character: str,
-    return_rationale: bool = True,
+    return_rationale: bool = False,
 ) -> Dict[str, Any]:
     """
     Evaluate whether a claim is consistent with evidence chunks.
@@ -231,10 +227,12 @@ def evaluate_claim(
     else:
         # Default behavior: use existing functions (exact same as before)
         # Count contradictions
-        contradictions = count_contradictions(claim, clean_texts)
+        contradictions = count_contradictions(claim, clean_texts, character)
 
         # Detect constraint violations
-        constraint_violation = detect_constraint_violation(claim, clean_texts)
+        constraint_violation = detect_constraint_violation(
+            claim, clean_texts, character
+        )
 
         # Aggregate decision
         decision = aggregate_decision(contradictions, constraint_violation)
