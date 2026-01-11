@@ -33,7 +33,7 @@ class Reasoner:
         self,
         indexer: NovelIndexer,
         book_name: str,
-        claims_path: str = CLAIM_PATH,  # Defaults to Train, can pass CLAIM_PATH_TESTING
+        claims_path: str = CLAIM_PATH_TESTING,  # Defaults to Train, can pass CLAIM_PATH_TESTING
         top_k: int = 3,
         out_path: str = "out/results.jsonl"
     ):

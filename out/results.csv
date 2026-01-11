@@ -1,4 +1,4 @@
-id,aggregate_status,decision,claim_idx,total_claims,claim,book_name
-46,TRUE,1,6,7,Thalcave spent his boyhood roaming plains with his father,The Count of Monte Cristo
-137,TRUE,1,4,5,It was for life.,The Count of Monte Cristo
-74,TRUE,1,2,3,Each fight preceded by study of the crack-patterns.,The Count of Monte Cristo
+id,aggregate_status,decision,claim_idx,total_claims,claim,book_name,Reason
+46,TRUE,1,6,7,ALL_CONSISTENT,The Count of Monte Cristo,All the claims in the backstory are true
+137,TRUE,1,4,5,ALL_CONSISTENT,The Count of Monte Cristo,All the claims in the backstory are true
+74,TRUE,1,2,3,ALL_CONSISTENT,The Count of Monte Cristo,All the claims in the backstory are true
