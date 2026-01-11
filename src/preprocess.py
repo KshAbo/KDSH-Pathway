@@ -6,7 +6,7 @@ No external dependency on claim_extraction.py or run_claim_extraction.py.
 
 Pipeline:
 1. Ingest and index novels using NovelIndexer
-2. Extract claims from train.csv via llama3 locally
+2. Extract claims from train.csv via qwen2.5:14b-instruct locally
 3. Save claims JSONL for downstream reasoner/query_generator
 """
 
@@ -44,6 +44,7 @@ REQUIRED_FILES = [
     "The Count of Monte Cristo.txt"
 ]
 
+# You can change this to "data/test.csv" if you are processing test data now
 TRAIN_PATH = "data/train.csv"
 CLAIM_JSONL = "intermediate/train_claims.jsonl"
 
@@ -52,12 +53,12 @@ logger = logging.getLogger("preprocess")
 
 
 # ============================
-# Inline Llama3 Claim Extractor
+# Inline Qwen Claim Extractor
 # ============================
 
-def llama3_extract_claims(text: str):
+def qwen_extract_claims(text: str):
     """
-    Inline claim extraction using llama3:8b via ollama.chat.
+    Inline claim extraction using qwen2.5:14b-instruct via ollama.chat.
     Produces atomic SVO factual statements.
     """
 
@@ -77,7 +78,7 @@ Text:
 """
 
     response = ollama.chat(
-        model="llama3:8b",
+        model="qwen2.5:14b-instruct",
         messages=[{"role": "user", "content": prompt}]
     )
 
@@ -88,14 +89,18 @@ Text:
     for line in raw.split("\n"):
         line = line.strip()
 
+        # Skip empty
         if not line:
             continue
 
+        # Skip headers
         if "here is" in line.lower():
             continue
 
+        # Remove numbering
         line = re.sub(r"^\d+[\.\)]\s*", "", line)
 
+        # Skip junk
         if len(line) < 10:
             continue
 
@@ -151,7 +156,8 @@ def run_claim_extraction(retry=1):
 
             while attempts <= retry:
                 try:
-                    claims = llama3_extract_claims(backstory) if backstory else []
+                    # UPDATED: Using qwen_extract_claims now
+                    claims = qwen_extract_claims(backstory) if backstory else []
                     break
                 except Exception as e:
                     attempts += 1
