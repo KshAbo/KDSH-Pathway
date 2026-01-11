@@ -40,7 +40,7 @@ except Exception:
 
 BOOKS_DIR = "./data/Books/"
 REQUIRED_FILES = [
-    "In search of the castaways.txt",
+    "In Search of the Castaways.txt",
     "The Count of Monte Cristo.txt"
 ]
 
