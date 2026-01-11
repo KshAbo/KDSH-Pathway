@@ -1,1 +1,0 @@
-#invoked by retrieve_chunk -> gets info from train_claims.jsonl -> created query and pass
