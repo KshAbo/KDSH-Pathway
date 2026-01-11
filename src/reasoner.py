@@ -92,6 +92,7 @@ class Reasoner:
                     character=character,
                     return_rationale=True
                 )
+                
 
                 # decorate final result for tracking pipeline lineage
                 final = {
