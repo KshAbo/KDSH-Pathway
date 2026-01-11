@@ -45,7 +45,7 @@ REQUIRED_FILES = [
 ]
 
 # You can change this to "data/test.csv" if you are processing test data now
-TRAIN_PATH = "data/train.csv"
+TRAIN_PATH = "data/test.csv"
 CLAIM_JSONL = "intermediate/train_claims.jsonl"
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")

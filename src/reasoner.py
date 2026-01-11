@@ -33,7 +33,7 @@ class Reasoner:
         self,
         indexer: NovelIndexer,
         book_name: str,
-        claims_path: str = CLAIM_PATH_TESTING,  # Defaults to Train, can pass CLAIM_PATH_TESTING
+        claims_path: str = CLAIM_PATH,  # Defaults to Train, can pass CLAIM_PATH_TESTING
         top_k: int = 3,
         out_path: str = "out/results.jsonl"
     ):
@@ -179,7 +179,7 @@ class Reasoner:
                         "claim_idx": len(partial_claims) - 1,
                         "total_claims": len(partial_claims),
                         "book_name": self.book_name,
-                        "claim": "ALL_CONSISTENT",
+                        "claim": "CONSISTENT",
                         "Reason": "All the claims in the backstory are true" # Standard success message
                     }
                     
