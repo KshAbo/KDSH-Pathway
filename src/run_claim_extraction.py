@@ -1,14 +1,14 @@
 import pandas as pd
 import json
 from tqdm import tqdm
-from claim_extraction import llama3_extract_claims
+from claim_extraction import qwen_extract_claims
 
 # Paths
-TRAIN_PATH = "data/train.csv"
-OUTPUT_PATH = "intermediate/train_claims.jsonl"
+PATH = "data/test.csv"
+OUTPUT_PATH = "intermediate/test_claims.jsonl"
 
 # Load dataset
-df = pd.read_csv(TRAIN_PATH)
+df = pd.read_csv(PATH)
 
 # Safety check
 assert "id" in df.columns
@@ -22,7 +22,7 @@ with open(OUTPUT_PATH, "w") as f:
         if not backstory:
             claims = []
         else:
-            claims = llama3_extract_claims(backstory)
+            claims = qwen_extract_claims(backstory)
 
         record = {
             "id": int(row["id"]),
