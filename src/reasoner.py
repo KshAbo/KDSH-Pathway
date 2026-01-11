@@ -1,6 +1,7 @@
 import json
 import os
 import re
+import csv
 from typing import Any, Dict, List
 from tqdm import tqdm
 
@@ -8,6 +9,13 @@ from tqdm import tqdm
 from retriever import Retriever
 from indexing.novel_indexer import NovelIndexer
 from reasoning_engine.engine import evaluate_claim
+
+# ==========================================
+# MACROS / CONFIGURATION
+# ==========================================
+CLAIM_PATH = "intermediate/train_claims.jsonl"
+CLAIM_PATH_TESTING = "intermediate/test_claims.jsonl"
+
 
 class Reasoner:
     """
@@ -18,13 +26,14 @@ class Reasoner:
         4. Implements Short-Circuit AND Logic:
            - If ANY partial claim fails -> Break and save failure.
            - If ALL partial claims pass -> Save success.
+        5. Saves output to both JSONL and CSV.
     """
 
     def __init__(
         self,
         indexer: NovelIndexer,
         book_name: str,
-        claims_path: str = "intermediate/train_claims.jsonl",
+        claims_path: str = CLAIM_PATH_TESTING,  # Defaults to Train, can pass CLAIM_PATH_TESTING
         top_k: int = 3,
         out_path: str = "out/results.jsonl"
     ):
@@ -56,11 +65,28 @@ class Reasoner:
             })
         return evidence
 
+    def _write_csv_row(self, writer, obj):
+        """Helper to flatten the object and write to CSV."""
+        row = {
+            "id": obj["id"],
+            "aggregate_status": obj["aggregate_status"],
+            "decision": obj["evaluation"].get("decision", -1), # Extract decision code
+            "claim_idx": obj["claim_idx"],
+            "total_claims": obj["total_claims"],
+            "claim": obj["claim"],
+            "book_name": obj["book_name"]
+        }
+        writer.writerow(row)
+
     def run(self):
         """
-        Main execution loop with Short-Circuit Logic.
+        Main execution loop with Short-Circuit Logic and CSV Export.
         """
+        # Ensure output directory exists
         os.makedirs(os.path.dirname(self.out_path), exist_ok=True)
+        
+        # Define CSV path based on out_path
+        csv_path = self.out_path.replace(".jsonl", ".csv")
 
         # 1. Load all data first to get total count for tqdm
         data_records = []
@@ -73,16 +99,23 @@ class Reasoner:
             print(f"[Reasoner] Error: {self.claims_path} not found.")
             return
 
-        print(f"[Reasoner] Processing {len(data_records)} IDs...")
+        print(f"[Reasoner] Processing {len(data_records)} IDs from {self.claims_path}...")
+        print(f"[Reasoner] Saving to:\n  JSONL: {self.out_path}\n  CSV:   {csv_path}")
 
-        with open(self.out_path, "w", encoding="utf-8") as fout:
+        # Open both files for writing
+        with open(self.out_path, "w", encoding="utf-8") as f_json, \
+             open(csv_path, "w", newline="", encoding="utf-8") as f_csv:
             
+            # Setup CSV Writer
+            csv_headers = ["id", "aggregate_status", "decision", "claim_idx", "total_claims", "claim", "book_name"]
+            csv_writer = csv.DictWriter(f_csv, fieldnames=csv_headers)
+            csv_writer.writeheader()
+
             # Iterate over every ID
             for record in tqdm(data_records, desc="Verifying IDs"):
                 row_id = record["id"]
                 partial_claims = record["claims"]
                 
-                # Default state if no claims exist
                 if not partial_claims:
                     continue
 
@@ -98,8 +131,6 @@ class Reasoner:
                     character = self._infer_character(claim_text)
 
                     # 2. Evaluate
-                    # Assuming evaluate_claim returns a dict with 'decision' 
-                    # where 1 = Supported, 0 = Refuted/NotEnoughtInfo
                     result = evaluate_claim(
                         claim=claim_text,
                         evidence_chunks=evidence,
@@ -119,26 +150,29 @@ class Reasoner:
                     }
 
                     # 3. Check for Failure (AND Logic)
-                    # We check if decision is NOT Supported (assuming 1 is Supported)
-                    # You can adjust this condition based on your engine's specific output codes
                     is_supported = (result.get("decision") == 1)
 
                     if not is_supported:
-                        # FAILURE CASE:
-                        # One part is false -> The whole ID is false.
-                        # We save this specific failure and BREAK.
+                        # FAILURE CASE
                         final_output_obj["aggregate_status"] = "FALSE"
-                        fout.write(json.dumps(final_output_obj, ensure_ascii=False) + "\n")
+                        
+                        # Write to JSONL
+                        f_json.write(json.dumps(final_output_obj, ensure_ascii=False) + "\n")
+                        # Write to CSV
+                        self._write_csv_row(csv_writer, final_output_obj)
+                        
                         all_passed = False
                         break # <--- BREAK THE NESTED LOOP
                     
-                    # If supported, we continue to the next partial claim in the loop
+                    # If supported, continue loop
 
                 # 4. Success Case
-                # If the loop finished and all_passed is still True, we save the LAST result
-                # marking the whole ID as True.
                 if all_passed and final_output_obj is not None:
                     final_output_obj["aggregate_status"] = "TRUE"
-                    fout.write(json.dumps(final_output_obj, ensure_ascii=False) + "\n")
+                    
+                    # Write to JSONL
+                    f_json.write(json.dumps(final_output_obj, ensure_ascii=False) + "\n")
+                    # Write to CSV
+                    self._write_csv_row(csv_writer, final_output_obj)
 
-        print(f"[Reasoner] Completed. Results saved to {self.out_path}")
+        print(f"[Reasoner] Completed.")
