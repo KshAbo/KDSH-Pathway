@@ -24,8 +24,8 @@ class Reasoner:
         2. Iterates through partial claims for each ID
         3. Retrieves evidence & Evaluates
         4. Implements Short-Circuit AND Logic:
-           - If ANY partial claim fails -> Break and save failure.
-           - If ALL partial claims pass -> Save success.
+           - If ANY partial claim fails -> Extract reasons, save as FALSE, and Break.
+           - If ALL partial claims pass -> Save as TRUE with standard reason.
         5. Saves output to both JSONL and CSV.
     """
 
@@ -33,7 +33,7 @@ class Reasoner:
         self,
         indexer: NovelIndexer,
         book_name: str,
-        claims_path: str = CLAIM_PATH_TESTING,  # Defaults to Train, can pass CLAIM_PATH_TESTING
+        claims_path: str = CLAIM_PATH,  # Defaults to Train, can pass CLAIM_PATH_TESTING
         top_k: int = 3,
         out_path: str = "out/results.jsonl"
     ):
@@ -70,11 +70,12 @@ class Reasoner:
         row = {
             "id": obj["id"],
             "aggregate_status": obj["aggregate_status"],
-            "decision": obj["evaluation"].get("decision", -1), # Extract decision code
+            "decision": obj.get("decision", -1),
             "claim_idx": obj["claim_idx"],
             "total_claims": obj["total_claims"],
             "claim": obj["claim"],
-            "book_name": obj["book_name"]
+            "book_name": obj["book_name"],
+            "Reason": obj["Reason"]  # New simplified field
         }
         writer.writerow(row)
 
@@ -88,7 +89,7 @@ class Reasoner:
         # Define CSV path based on out_path
         csv_path = self.out_path.replace(".jsonl", ".csv")
 
-        # 1. Load all data first to get total count for tqdm
+        # 1. Load all data first
         data_records = []
         if os.path.exists(self.claims_path):
             with open(self.claims_path, "r") as f:
@@ -107,7 +108,7 @@ class Reasoner:
              open(csv_path, "w", newline="", encoding="utf-8") as f_csv:
             
             # Setup CSV Writer
-            csv_headers = ["id", "aggregate_status", "decision", "claim_idx", "total_claims", "claim", "book_name"]
+            csv_headers = ["id", "aggregate_status", "decision", "claim_idx", "total_claims", "claim", "book_name", "Reason"]
             csv_writer = csv.DictWriter(f_csv, fieldnames=csv_headers)
             csv_writer.writeheader()
 
@@ -119,7 +120,6 @@ class Reasoner:
                 if not partial_claims:
                     continue
 
-                final_output_obj = None
                 all_passed = True
 
                 # Nested Loop: Iterate through partial claims for this ID
@@ -138,41 +138,53 @@ class Reasoner:
                         return_rationale=True
                     )
 
-                    # Prepare the output object
-                    final_output_obj = {
-                        "id": row_id,
-                        "claim_idx": idx,
-                        "total_claims": len(partial_claims),
-                        "book_name": self.book_name,
-                        "claim": claim_text,
-                        "evaluation": result,
-                        "aggregate_status": "PENDING"
-                    }
-
-                    # 3. Check for Failure (AND Logic)
                     is_supported = (result.get("decision") == 1)
 
+                    # 3. Check for Failure (AND Logic)
                     if not is_supported:
-                        # FAILURE CASE
-                        final_output_obj["aggregate_status"] = "FALSE"
+                        # === FAILURE CASE ===
                         
-                        # Write to JSONL
+                        # Extract only the "reason" text from the list of dicts
+                        raw_rationale_list = result.get("evidence_rationale", [])
+                        reason_strings = [r.get("reason", "") for r in raw_rationale_list if "reason" in r]
+                        
+                        # Join them with ". "
+                        combined_reason = ". ".join(reason_strings)
+
+                        final_output_obj = {
+                            "id": row_id,
+                            "aggregate_status": "FALSE",
+                            "decision": result.get("decision"),
+                            "claim_idx": idx,
+                            "total_claims": len(partial_claims),
+                            "book_name": self.book_name,
+                            "claim": claim_text,
+                            "Reason": combined_reason  # Simplified reason string
+                        }
+                        
+                        # Write to JSONL & CSV
                         f_json.write(json.dumps(final_output_obj, ensure_ascii=False) + "\n")
-                        # Write to CSV
                         self._write_csv_row(csv_writer, final_output_obj)
                         
                         all_passed = False
                         break # <--- BREAK THE NESTED LOOP
                     
-                    # If supported, continue loop
-
-                # 4. Success Case
-                if all_passed and final_output_obj is not None:
-                    final_output_obj["aggregate_status"] = "TRUE"
+                # 4. Success Case (All Partial Claims Passed)
+                if all_passed:
+                    # === SUCCESS CASE ===
+                    final_output_obj = {
+                        "id": row_id,
+                        "aggregate_status": "TRUE",
+                        "decision": 1,
+                        "claim_idx": len(partial_claims) - 1,
+                        "total_claims": len(partial_claims),
+                        "book_name": self.book_name,
+                        "claim": "ALL_CONSISTENT",
+                        "Reason": "All the claims in the backstory are true" # Standard success message
+                    }
                     
-                    # Write to JSONL
+                    # Write to JSONL & CSV
                     f_json.write(json.dumps(final_output_obj, ensure_ascii=False) + "\n")
-                    # Write to CSV
                     self._write_csv_row(csv_writer, final_output_obj)
 
         print(f"[Reasoner] Completed.")
