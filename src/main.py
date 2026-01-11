@@ -17,8 +17,8 @@ import logging
 # preprocess.py
 import preprocess
 
-# test.py (rename import-safe)
-import test
+# results.py (your reasoning runner)
+import results
 
 # ----------------------------
 # Logging
@@ -39,7 +39,7 @@ def main():
     # ----------------------------------
     logger.info("Running preprocess.py (--all)")
     
-    # Call preprocess main logic directly
+    # Reuse existing preprocess logic
     preprocess.process_novels()
     preprocess.run_claim_extraction()
 
@@ -48,16 +48,13 @@ def main():
     # ----------------------------------
     # Stage 2: Reasoning
     # ----------------------------------
-    logger.info("Running test.py")
+    logger.info("Running results.py")
 
-    # test.py executes logic at import-time?
-    # If not, we explicitly call its logic.
-
-    if hasattr(test, "main"):
-        test.main()
+    # results.py may execute at import-time OR expose main()
+    if hasattr(results, "main"):
+        results.main()
     else:
-        # test.py runs at top-level (your current case)
-        logger.info("test.py executed via import")
+        logger.info("results.py executed via import")
 
     logger.info("========== PIPELINE COMPLETE ==========")
 
