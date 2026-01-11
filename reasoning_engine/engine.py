@@ -140,7 +140,7 @@ def evaluate_claim(
     claim: str,
     evidence_chunks: List[Dict[str, Any]],
     character: str,
-    return_rationale: bool = True,
+    return_rationale: bool = False,
 ) -> Dict[str, Any]:
     """
     Evaluate whether a claim is consistent with evidence chunks.

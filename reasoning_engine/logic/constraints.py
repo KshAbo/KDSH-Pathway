@@ -19,7 +19,7 @@ def _load_cache() -> dict:
     """Load constraint cache from disk."""
     if not CACHE_ENABLED:
         # Minimal debug log when cache is globally disabled
-        print("[DEBUG] Cache disabled — skipping constraint cache load")
+        # print("[DEBUG] Cache disabled — skipping constraint cache load")
         return {}
 
     if not os.path.exists(CACHE_FILE):
@@ -36,7 +36,7 @@ def _save_cache(cache: dict):
     """Save constraint cache to disk."""
     if not CACHE_ENABLED:
         # When cache is disabled, do not write cache
-        print("[DEBUG] Cache disabled — skipping constraint cache write")
+        # print("[DEBUG] Cache disabled — skipping constraint cache write")
         return
 
     os.makedirs(CACHE_DIR, exist_ok=True)
@@ -387,8 +387,8 @@ def check_constraints(key, *args, **kwargs):
     cache = _load_cache()
     if CACHE_ENABLED and key in cache:
         return cache[key]
-    if not CACHE_ENABLED:
-        print("[DEBUG] Cache disabled — recomputing constraint result")
+    # if not CACHE_ENABLED:
+    # print("[DEBUG] Cache disabled — recomputing constraint result")
     result = _compute_constraints(*args, **kwargs)
     _save_cache({**cache, key: result} if CACHE_ENABLED else cache)
     return result

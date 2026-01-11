@@ -21,7 +21,7 @@ def aggregate_decision(contradictions: int, constraint_violation: bool) -> int:
     """
     if constraint_violation:
         return 0
-    elif contradictions >= 2:
+    elif contradictions >= 1:
         return 0
     else:
         return 1

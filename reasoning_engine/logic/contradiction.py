@@ -19,7 +19,7 @@ def _load_cache() -> dict:
     """Load contradiction cache from disk."""
     if not CACHE_ENABLED:
         # Minimal debug log when cache is globally disabled
-        print("[DEBUG] Cache disabled — skipping contradiction cache load")
+        # print("[DEBUG] Cache disabled — skipping contradiction cache load")
         return {}
 
     if not os.path.exists(CACHE_FILE):
@@ -36,7 +36,7 @@ def _save_cache(cache: dict):
     """Save contradiction cache to disk."""
     if not CACHE_ENABLED:
         # When cache is disabled, do not write cache
-        print("[DEBUG] Cache disabled — skipping contradiction cache write")
+        # print("[DEBUG] Cache disabled — skipping contradiction cache write")
         return
 
     os.makedirs(CACHE_DIR, exist_ok=True)
