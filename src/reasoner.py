@@ -66,16 +66,11 @@ class Reasoner:
         return evidence
 
     def _write_csv_row(self, writer, obj):
-        """Helper to flatten the object and write to CSV."""
+        """Helper to write only story_id, prediction, and rationale to CSV."""
         row = {
-            "id": obj["id"],
-            "aggregate_status": obj["aggregate_status"],
-            "decision": obj.get("decision", -1),
-            "claim_idx": obj["claim_idx"],
-            "total_claims": obj["total_claims"],
-            "claim": obj["claim"],
-            "book_name": obj["book_name"],
-            "Reason": obj["Reason"]  # New simplified field
+            "story_id": obj["id"],
+            "prediction": obj.get("decision", -1),
+            "rationale": obj["Reason"]
         }
         writer.writerow(row)
 
@@ -107,8 +102,8 @@ class Reasoner:
         with open(self.out_path, "w", encoding="utf-8") as f_json, \
              open(csv_path, "w", newline="", encoding="utf-8") as f_csv:
             
-            # Setup CSV Writer
-            csv_headers = ["id", "aggregate_status", "decision", "claim_idx", "total_claims", "claim", "book_name", "Reason"]
+            # Setup CSV Writer with only the three required columns
+            csv_headers = ["story_id", "prediction", "rationale"]
             csv_writer = csv.DictWriter(f_csv, fieldnames=csv_headers)
             csv_writer.writeheader()
 
